@@ -1,0 +1,6 @@
+Revision history for Perl extension Linux::Shadow.
+
+0.01  Mon Apr  3 13:51:21 2017
+	- original version; created by h2xs 1.23 with options
+		-n Linux::Shadow /usr/include/shadow.h
+
