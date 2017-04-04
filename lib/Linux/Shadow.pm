@@ -3,6 +3,7 @@ package Linux::Shadow;
 use 5.016003;
 use strict;
 use warnings;
+use feature 'state';
 use Carp;
 
 require Exporter;
@@ -28,6 +29,9 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw(
+	getspnam
+	getspent
+	setspent
 );
 
 our $VERSION = '0.01';
@@ -60,6 +64,10 @@ XSLoader::load('Linux::Shadow', $VERSION);
 
 # Preloaded methods go here.
 
+# Track if getspent() was called, so endspent() can be called on termination.
+state $spent = 0;
+
+# Return the shadow entry for the specified user.
 sub getspnam {
 
     my ($name) = @_;
@@ -72,10 +80,17 @@ sub getspnam {
 
 }
 
+# Return the next shadow entry
 sub getspent {
 
+    $spent++;
     return _getspent();
 
+}
+
+# If getspent was called, call endspent to free up the memory structures.
+END {
+    endspent() if $spent;
 }
 
 # Autoload methods go after =cut, and are processed by the autosplit program.
@@ -86,49 +101,110 @@ __END__
 
 =head1 NAME
 
-Linux::Shadow - Perl extension for blah blah blah
+Linux::Shadow - Perl extension for accessing the shadow files using the
+standard libc shadow routines.
 
 =head1 SYNOPSIS
 
   use Linux::Shadow;
-  blah blah blah
+  ($name, $passwd, $lstchg, $min, $max, $warn, $inact, $expire, $flag) = getspnam('user');
+  ($name, $passwd, $lstchg, $min, $max, $warn, $inact, $expire, $flag) = getspent();
+  setspent();
+  
+=head1 EXPORT
 
-=head1 DESCRIPTION
+=over
 
-Stub documentation for Linux::Shadow, created by h2xs. It looks like the
-author of the extension was negligent enough to leave the stub
-unedited.
+=item getspnam($)
 
-Blah blah blah.
+Return the shadow entry of the listed user as an array.  If the user doesn't
+exist, or an error occurrs, returns an empty array.
 
-=head2 EXPORT
+=item getspent()
 
-None by default.
+Return the shadow entry of the next user in the shadow file starting with the
+first entry the first time getspent() is called.  Returns and empty array once
+the end of the shadow file is reached or an error occurs.
+
+=item setspent()
+
+Resets the pointer in the shadow file to the beginning.
+
+=back
 
 =head2 Exportable constants
 
-  SHADOW
+  SHADOW - the path of the system shadow file
 
+This is not exported by default.  You can get both this constant and the
+exported functions by using the ':all' tag.
 
+=head1 Shadow Entry
+
+The shadow entry is an array of 9 items as follows:
+
+=over
+
+=item name
+
+The user login name.
+
+=item passwd
+
+The user's encrypted password.
+
+=item lstchg
+
+The number of days since Jan 1, 1970 password was last changed.
+
+=item min
+
+The number of days before which password may not be changed.
+
+=item max
+
+The number of days after which password must be changed.
+
+=item warn
+
+The number of days before password is to expire that user is warned of pending
+password expiration.
+
+=item inact
+
+The number of days after password expires that account is considered inactive and disabled.
+
+=item expire
+
+The number of days since Jan 1, 1970 when account will be disabled.
+
+=item flag
+
+This field is reserved for future use.
+
+=back
+
+=head1 FILES
+
+These functions rely on the system shadow file, which is usually /etc/shadow.
+
+=head1 CAVEATS
+
+Access to the shadow file requires root privileges, or possibly membership in
+the shadow group if it exists (this is OS/distribution-specific).  Calling
+getspnam or getspent without as a non- root user will return nothing.
 
 =head1 SEE ALSO
 
-Mention other useful documentation such as the documentation of
-related modules or operating system documentation (such as man pages
-in UNIX), or any relevant external documentation such as RFCs or
-standards.
-
-If you have a mailing list set up for your module, mention it here.
-
-If you have a web site set up for your module, mention it here.
+L<shadow(3)>, L<getspnam(3)>
 
 =head1 AUTHOR
 
-root, E<lt>root@localdomainE<gt>
+Joshua Megerman, E<lt>josh@honorablemenschen.com<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2017 by root
+Copyright (C) 2017 by Joshua Megerman
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.16.3 or,
