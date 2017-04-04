@@ -23,6 +23,7 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     getspnam
     getspent
     setspent
+    endspent
 ) ] );
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
@@ -31,6 +32,7 @@ our @EXPORT = qw(
     getspnam
     getspent
     setspent
+    endspent
 );
 
 our $VERSION = '0.02';
@@ -103,7 +105,18 @@ standard libc shadow routines.
   ($name, $passwd, $lstchg, $min, $max, $warn, $inact, $expire, $flag) = getspnam('user');
   ($name, $passwd, $lstchg, $min, $max, $warn, $inact, $expire, $flag) = getspent();
   setspent();
+  endspent();
   
+=head1 DESCRIPTION
+ 
+Perl gives access to the user's shadow password itself via getpw*, but the
+rest of the shadow entry is not available (expire is theoretically available
+if compiled that way, but it isn't universal).  This module provides a Perl
+interface to the shadow routines getspnam, getspent, setspent and endspent,
+allowing the full shadow password structure to be returned.  Like all access
+to the shadow files, root privileges are required to return anything - non-
+root users get nothing.
+
 =head1 EXPORT
 
 =over
@@ -122,6 +135,10 @@ the end of the shadow file is reached or an error occurs.
 =item setspent()
 
 Resets the pointer in the shadow file to the beginning.
+
+=item endspent()
+
+Releases the resources used to access the shadow file.
 
 =back
 
