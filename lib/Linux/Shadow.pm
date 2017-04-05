@@ -59,35 +59,6 @@ XSLoader::load('Linux::Shadow', $VERSION);
 
 # Preloaded methods go here.
 
-# Track if getspent() was called, so endspent() can be called on termination.
-state $spent = 0;
-
-# Return the shadow entry for the specified user.
-sub getspnam {
-
-    my ($name) = @_;
-
-    if (!$name) {
-        return;
-    }
-
-    return _getspnam($name);
-
-}
-
-# Return the next shadow entry
-sub getspent {
-
-    $spent++;
-    return _getspent();
-
-}
-
-# If getspent was called, call endspent to free up the memory structures.
-END {
-    endspent() if $spent;
-}
-
 # Autoload methods go after =cut, and are processed by the autosplit program.
 
 1;
@@ -149,7 +120,9 @@ Releases the resources used to access the shadow file.
 This is not exported by default.  You can get both this constant and the
 exported functions by using the ':all' tag.
 
-=head1 Shadow Entry
+=head1 RETURN VALUES
+
+=head2 Shadow Entry
 
 The shadow entry is an array of 9 items as follows:
 
