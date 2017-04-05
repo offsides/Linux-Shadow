@@ -1,6 +1,6 @@
 package Linux::Shadow;
 
-use 5.016003;
+use 5.010001;
 use strict;
 use warnings;
 use feature 'state';
