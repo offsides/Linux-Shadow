@@ -1,5 +1,8 @@
 Revision history for Perl extension Linux::Shadow.
 
+0.04  Wed Apr  5 2017
+	- Rename MYMETA files to META files
+
 0.03  Wed Apr  5 2017
 	- Add changelog, package the MYMETA files, some more documentation
 		cleanup, Backup minimum version to 5.10.1, change to pure
