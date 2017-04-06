@@ -9,43 +9,44 @@ use Carp;
 require Exporter;
 use AutoLoader;
 
-our @ISA = qw(Exporter);
+use base qw(Exporter);
 
-# Items to export into callers namespace by default. Note: do not export
-# names by default without a very good reason. Use EXPORT_OK instead.
-# Do not simply export all your public functions/methods/constants.
-
-# This allows declaration	use Linux::Shadow ':all';
-# If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
-# will save memory.
-our %EXPORT_TAGS = ( 'all' => [ qw(
-    SHADOW
-    getspnam
-    getspent
-    setspent
-    endspent
-) ] );
-
-our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
-
-our @EXPORT = qw(
-    getspnam
-    getspent
-    setspent
-    endspent
+our %EXPORT_TAGS = (
+    'all' => [
+        qw(
+          SHADOW
+          getspnam
+          getspent
+          setspent
+          endspent
+          )
+    ],
+    'getpw' => [
+        qw(
+          getpwnam
+          getpwuid
+          getpwent
+          )
+    ]
 );
 
-our $VERSION = '0.04';
+our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} }, @{ $EXPORT_TAGS{'getpw'} } );
+
+our @EXPORT = qw(
+  getspnam
+  getspent
+  setspent
+  endspent
+);
+
+our $VERSION = '0.05';
 
 sub AUTOLOAD {
-    # This AUTOLOAD is used to 'autoload' constants from the constant()
-    # XS function.
-
     my $constname;
     our $AUTOLOAD;
-    ($constname = $AUTOLOAD) =~ s/.*:://;
-    croak "&Linux::Shadow::constant not defined" if $constname eq 'constant';
-    my ($error, $val) = constant($constname);
+    ( $constname = $AUTOLOAD ) =~ s/.*:://;
+    croak '&Linux::Shadow::constant not defined' if $constname eq 'constant';
+    my ( $error, $val ) = constant($constname);
     if ($error) { croak $error; }
     {
         no strict 'refs';
@@ -55,15 +56,50 @@ sub AUTOLOAD {
 }
 
 require XSLoader;
-XSLoader::load('Linux::Shadow', $VERSION);
+XSLoader::load( 'Linux::Shadow', $VERSION );
 
-# Preloaded methods go here.
+sub getpwnam {
 
-# Autoload methods go after =cut, and are processed by the autosplit program.
+    my ($name) = @_;
+    my @pwent = CORE::getpwnam($name);
+    return set_pwent_expire(@pwent);
+
+}
+
+sub getpwuid {
+
+    my ($uid) = @_;
+    my @pwent = CORE::getpwuid($uid);
+    return set_pwent_expire(@pwent);
+
+}
+
+sub getpwent {
+
+    my @pwent = CORE::getpwent();
+    return set_pwent_expire(@pwent);
+
+}
+
+sub set_pwent_expire {
+
+    my @pwent = @_;
+
+    if ( @pwent && $pwent[0] && !defined $pwent[9] ) {
+
+        my @shadow = getspnam( $pwent[0] );
+        if ( @shadow && ( $shadow[0] eq $pwent[0] ) && defined $shadow[7] ) {
+            $pwent[9] = $shadow[7];
+        }
+
+    }
+
+    return @pwent;
+
+}
 
 1;
 __END__
-# Below is stub documentation for your module. You'd better edit it!
 
 =head1 NAME
 
@@ -73,11 +109,16 @@ standard libc shadow routines.
 =head1 SYNOPSIS
 
   use Linux::Shadow;
-  ($name, $passwd, $lstchg, $min, $max, $warn, $inact, $expire, $flag) = getspnam('user');
-  ($name, $passwd, $lstchg, $min, $max, $warn, $inact, $expire, $flag) = getspent();
+  ($name,$passwd,$lstchg,$min,$max,$warn,$inact,$expire,$flag) = getspnam('user');
+  ($name,$passwd,$lstchg,$min,$max,$warn,$inact,$expire,$flag) = getspent();
   setspent();
   endspent();
   
+  use Linux::Shadow qw(:getpw);
+  ($name,$passwd,$uid,$gid, $quota,$comment,$gcos,$dir,$shell,$expire) = getpwnam('user');
+  ($name,$passwd,$uid,$gid, $quota,$comment,$gcos,$dir,$shell,$expire) = getpwuid(0);
+  ($name,$passwd,$uid,$gid, $quota,$comment,$gcos,$dir,$shell,$expire) = getpwent();
+
 =head1 DESCRIPTION
  
 Perl gives access to the user's shadow password itself via getpw*, but the
@@ -88,14 +129,19 @@ allowing the full shadow password structure to be returned.  Like all access
 to the shadow files, root privileges are required to return anything - non-
 root users get nothing.
 
-=head1 EXPORT
+=head1 SUBROUTINES
+
+=head2 Default Exports
+
+These routines are exported by default, as they simply expose identically
+named C library routines that are not a part of Perl's core.
 
 =over
 
-=item getspnam($)
+=item getspnam(NAME)
 
 Return the shadow entry of the listed user as an array.  If the user doesn't
-exist, or an error occurrs, returns an empty array.
+exist, or an error occurs, returns an empty array.
 
 =item getspent()
 
@@ -120,11 +166,33 @@ Releases the resources used to access the shadow file.
 This is not exported by default.  You can get both this constant and the
 exported functions by using the ':all' tag.
 
+=head2 Overloaded Core Routines
+
+These routines overload the identically named Perl core routines, with the
+purpose of populating the $expires field that is not typically compiled into
+Perl itself.  These must be explicitly imported to access them.
+
+=over
+
+=item getpwnam(NAME)
+
+=item getpwuid(UID)
+
+=item getpwent
+
+These functions work exactly like the identically named functions documented
+in L<perlfunc/perlfunc>, except that if they return the userinfo and can
+access the shadow info, the $expires field is guaranteed to be populated.
+See L<perlfunc/getpwnam> for details.
+
+=back
+
 =head1 RETURN VALUES
 
 =head2 Shadow Entry
 
-The shadow entry is an array of 9 items as follows:
+The shadow entry returned by getspnam and getspent is an array of 9 items as
+follows:
 
 =over
 
@@ -179,7 +247,7 @@ getspnam or getspent without as a non- root user will return nothing.
 
 =head1 SEE ALSO
 
-L<shadow(3)>, L<getspnam(3)>
+L<shadow(3)>, L<getspnam(3)>, L<perlfunc/getpwnam>
 
 =head1 AUTHOR
 

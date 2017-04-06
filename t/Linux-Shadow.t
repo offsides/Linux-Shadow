@@ -8,8 +8,8 @@
 use strict;
 use warnings;
 
-use Test::More tests => 13;
-BEGIN { use_ok('Linux::Shadow', qw(SHADOW getspnam getspent setspent endspent)) };
+use Test::More tests => 16;
+BEGIN { use_ok('Linux::Shadow', qw(SHADOW getspnam getspent setspent endspent getpwnam getpwuid getpwent)) };
 
 
 my $fail = 0;
@@ -37,7 +37,7 @@ ok defined &setspent;
 ok defined &endspent;
 
 SKIP: {
-  skip('Shadow functions require root permission', 1) if ($> != 0); 
+  skip('Shadow functions require access to the shadow file', 10) if (! -r SHADOW); 
 
   $fail = 0;
   my @shadow = getspnam('root');
@@ -116,5 +116,29 @@ SKIP: {
     $fail = 1;
   }
   ok( $fail == 0, 'endspent' );
+
+  my @pwent = getpwnam('root');
+  if (!@pwent) {
+     $fail = 1;
+  } elsif ($#pwent != 9) {
+     $fail = 1;
+  }
+  ok( $fail == 0, 'getpwnam overload' );
+
+  @pwent = getpwuid(0);
+  if (!@pwent) {
+     $fail = 1;
+  } elsif ($#pwent != 9) {
+     $fail = 1;
+  }
+  ok( $fail == 0, 'getpwuid overload' );
+
+  @pwent = getpwent();
+  if (!@pwent) {
+     $fail = 1;
+  } elsif ($#pwent != 9) {
+     $fail = 1;
+  }
+  ok( $fail == 0, 'getpwent overload' );
 
 }
